@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Node.js Programming for Modern Web</title>
+<style>
+    .line { overflow: hidden; }
+    .seat {
+        margin: 2px; float: left;
+        width: 20px; height: 20px;
+        border-radius: 3px;
+    }
+    .pay {
+        margin: 2px; float: left;
+        height: 30px;
+        border-radius: 3px;
+    }
+
+    .empty { background: #D3D3D3; 
+        border-top: thick solid #DCDCDC;}
+    .reserved:hover { 
+        background: #228B22; 
+        border-top: thick solid #008000;
+    }
+    .reserved { background: 	#B0E0E6; 
+     border-top: thick solid 	#AFEEEE;
+    }
+    .tempMy { background: #228B22; 
+        border-top: thick solid #008000;}
+    .pay { background: skyblue; }
+     .layer {
+     width: 100%;
+     height: 100%;
+     text-align: center;
+     }
+    .line {
+     display: inline-block;
+     }
+    html{
+        width:600px;
+        margin:0 auto;
+    }
+    
+</style>
+<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+    
+<!-- 소켓 생성 -->
+<script>
+    //1. 소켓 이벤트를 수행하여 소켓연결
+    var socket = io.connect();
+
+    //2. 상영정보번호에 해당하는 방에 입장
+    var roomId = <%= no %>;
+    var output = {command : 'join', roomId : roomId};
+    console.log('서버로 보낼 데이터 : '+JSON.stringify(output));
+
+    if(socket == undefined){
+        console.log('좌석관련 서버에 연결되어 있지 않습니다. 관리자에게 문의하세요');
+    }
+
+    socket.emit('room', output);
+
+    //다른 사용자가 좌석을 예매했을 경우
+    socket.on('reserve', function (data) {
+        var $target = $('div[data-x = ' + data.x + '][data-y = ' + data.y + ']');
+        $target.removeClass('empty');
+        $target.removeClass('tempMy');
+        $target.addClass('reserved');
+    });
+
+</script>
+<!-- 초기 좌석 생성 -->
+<script>
+    //최대 4개까지 좌석번호를 넣을 변수
+var selectedSeat = [];
+    
+
+
+
+    
+    
+$(document).ready(function () {
+
+    //0. ajax수행으로 좌석 현황 받아오기
+    $.getJSON('/alarmSeats', { dummy: new Date().getTime() }, function (data) {
+        // 좌석을 생성합니다.
+        $.each(data, function (indexY, line) {
+            var $line = $('<div style="margin-right:50px;margin-left:50px; float: center;"></div>').addClass('line');
+
+            $.each(line, function (indexX, seat) {
+                var $output = $('<div></div>', {
+                    'class': 'seat',
+                    'data-x': indexX,
+                    'data-y': indexY
+                }).appendTo($line);
+                if (seat == 1) {
+                    $output.addClass('empty');
+                } else if (seat == 2) {
+                    $output.addClass('reserved').on('click', onClickSeat);
+                }
+            });
+            $line.appendTo('div.layer');                    
+        });
+    });    
+
+
+    //1. 좌석 선택하기
+    var onClickSeat = function () {
+
+        var x = $(this).attr('data-x');
+        var y = $(this).attr('data-y');
+
+        if( $(this).hasClass('.open') ){
+
+        //1.1 좌석일경우(복도X)
+        }else{
+            var count = 4;
+
+            //1.1.2 인원이 남음(X) array를 비우고 새로 넣는다.
+            if(selectedSeat.length>=count){
+
+                alert('selectedSeat : '+selectedSeat+'최대 4좌석까지만 알리미 신청이 가능합니다. 선택하신 좌석으로 변경하시겠습니까?');
+
+                var tempLength = selectedSeat.length;
+                for(i = 0; i < tempLength; i++){      //왜 <는 안되 고 <=는 되는거였지?                     
+                    var before = selectedSeat.pop();    
+
+                    var $target = $('div[data-x = ' + before[1] + '][data-y = ' + before[0] + ']');
+                    
+
+                    $target.off('click');
+                    $target.removeClass('tempMy');
+                    $target.addClass('reserved').on('click', onClickSeat);   
+                }
+            }
+
+
+            //1.1.3 인원수 선택(OK) & 인원이 남음(OK)
+            $(this).off('click');
+            $(this).on('click', onTempCancel);
+
+            var tempArr = [y, x];
+            selectedSeat.push(tempArr);
+
+            var $target = $('div[data-x = ' + x + '][data-y = ' + y + ']');
+
+            $target.removeClass('reserved');
+            $target.addClass('tempMy');      
+
+            //좌석번호 출력하기
+            console.log('취소표알리미에서 선택한 좌석 : '+selectedSeat);
+            parent.postMessage(selectedSeat,"*");
+
+        }
+    };
+
+
+    //2. 좌석 선택취소하기
+    var onTempCancel = function () {
+        console.log('좌석 선택취소하기');
+
+        var x = $(this).attr('data-x');
+        var y = $(this).attr('data-y');
+
+        $(this).off('click');
+        var index = findIndex(selectedSeat, x, y);
+
+        selectedSeat.splice(index,1);
+
+        var $target = $('div[data-x = ' + x + '][data-y = ' + y + ']');
+
+        $target.removeClass('tempMy');
+        $target.addClass('reserved').on('click', onClickSeat); 
+        
+        console.log('취소표알리미에서 선택한 좌석 : '+selectedSeat);
+        parent.postMessage(selectedSeat,"*");
+
+    };
+    
+   //alert창에서 취소표알리미 신청을 취소했을경우
+    window.addEventListener('message', function(e) {
+        console.log('jj');
+        if(e.data =='reset'){
+            console.log('resertttt');
+            var tempLength = selectedSeat.length;
+          for(i = 0; i < tempLength; i++){      //왜 <는 안되 고 <=는 되는거였지?                     
+                var before = selectedSeat.pop();    
+
+                var $target = $('div[data-x = ' + before[1] + '][data-y = ' + before[0] + ']');
+
+                $target.off('click');
+                $target.removeClass('tempMy');
+                $target.addClass('reserved').on('click', onClickSeat);   
+            }
+        }
+    });
+    //end
+    
+});
+
+
+function findIndex(array, xValue, yValue){
+    var index = "-1";
+    for (i = 0; i < array.length; i++){ 
+        if(array[i][0]==yValue){
+            if(array[i][1]==xValue){
+             index = i;
+             console.log('x : '+xValue+', '+'y : '+yValue+', index : '+index);
+            }
+        }
+    }
+     return index;
+}
+
+
+</script>
+</head>
+    <body>
+      <div class="outLayer" align="center">
+        <div class="layer">
+        </div>
+        </div>
+    </body>
+</html>

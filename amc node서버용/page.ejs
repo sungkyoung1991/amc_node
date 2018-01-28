@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1">
+<title>Node.js Programming for Modern Web</title>
+<style>
+    
+    .line { overflow: hidden; }
+    .seat {
+        margin: 2px; float: left;
+        width: 20px; height: 20px;
+        border-radius: 3px;
+        
+        
+
+    }
+    .pay {
+        margin: 2px; float: left;
+        height: 30px;
+        border-radius: 3px;
+    }
+
+    .enable { 
+        background:  #ffd564; 
+        border-top: thick solid  #996633;
+    }
+    .enable:hover { 
+        background: #4c4145;
+    }
+    .disable { 
+        background: #dbdee1;
+        border-top: thick solid #A9A9A9;
+    }
+    .tempMy { 
+        background: #4c4145;
+        border-top: thick solid  #996633;
+    }
+    .pay { 
+        background: skyblue; 
+    }
+    
+
+    .layer {
+     width: 100%;
+     height: 100%;
+     text-align: center;
+     }
+    .line {
+     display: inline-block;
+     }
+    .container{
+        width:100%;
+        max-width:none !important;
+    }
+
+    
+</style>
+<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+ 
+<script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+
+<meta charset="utf-8">
+
+
+<!-- Mobile Specific Metas-->
+    <!-- 여기-->
+<!--<meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+<meta content="telephone=no" name="format-detection">
+    
+<link href="http://fonts.googleapis.com/earlyaccess/hanna.css" rel="stylesheet">        
+<link href="http://fonts.googleapis.com/earlyaccess/jejugothic.css" rel="stylesheet">
+<!-- 소켓 생성 -->
+<script>
+    //1. 소켓 이벤트를 수행하여 소켓연결
+    var socket = io.connect();
+
+    //2. 상영정보번호에 해당하는 방에 입장
+                    /////screenContentNo : 여기서 어떻게 받지???????????????????
+    var roomId = <%= no %>;
+    var output = {command : 'join', roomId : roomId};
+    console.log('서버로 보낼 데이터 : '+JSON.stringify(output));
+
+    if(socket == undefined){
+        console.log('좌석관련 서버에 연결되어 있지 않습니다. 관리자에게 문의하세요');
+        //return;
+    }
+
+    socket.emit('room', output);
+
+    //다른 사용자가 좌석을 예매했을 경우
+    socket.on('reserve', function (data) {
+       
+        console.log('좌석예매함');
+        var $target = $('div[data-x = ' + data.x + '][data-y = ' + data.y + ']');
+        $target.removeClass('enable');
+        $target.removeClass('tempMy');
+        $target.addClass('disable');
+        //****************************
+        //selectedSeat에 reserve data와 같은게 있는지 확인하고, jsp에 알려주기
+        for (i = 0; i < selectedSeat.length; i++){ 
+            if(selectedSeat[i][1]==data.x){
+                if(selectedSeat[i][0]==data.y){
+                    
+                var tLength = selectedSeat.length;
+                for(i = 0; i < tLength; i++){      //왜 <는 안되 고 <=는 되는거였지?                     
+                    var before = selectedSeat.pop();    
+                    var $target = $('div[data-x = ' + before[1] + '][data-y = ' + before[0] + ']');
+
+                    $target.off('click');
+                    $target.removeClass('tempMy');
+                    $target.addClass('enable').on('click', onClickSeat);   
+                }
+                 console.log('duplicated');       
+                 parent.postMessage("duplicated,","*");                  
+                }
+            }
+        }
+        //****************************
+    });
+    socket.on('cancel', function (data) {
+        var $target = $('div[data-x = ' + data.x + '][data-y = ' + data.y + ']');
+        $target.removeClass('disable');
+        $target.removeClass('tempMy');
+        $target.addClass('enable');
+        
+        //selectedSeat = [];
+    });
+    socket.on('specific', function (data) {
+        console.log('specific message(socket id) : '+data);
+        parent.postMessage("id,"+data,"*");        
+        
+    });
+
+</script>
+    
+<script>
+    //최대 4개까지 좌석번호를 넣을 변수
+    var selectedSeat = [];
+    
+    var onClickSeat;
+
+    $(document).ready(function () {
+
+
+        //0. ajax수행으로 좌석 현황 받아오기
+        $.getJSON('/seats', { dummy: new Date().getTime() }, function (data) {
+            
+
+            // 좌석을 생성합니다.
+            $.each(data, function (indexY, line) {
+                // 문서 객체를 생성합니다.
+                var $line = $('<div style="margin-right:50px;margin-left:50px; float: center;"></div>').addClass('line');
+                //<div class='line'></div>
+
+                $.each(line, function (indexX, seat) {
+                    // 문서 객체를 생성하고 변수 $line에 추가합니다.
+                    var $output = $('<div ></div>', {
+                        'class': 'seat',
+                        'data-x': indexX,
+                        'data-y': indexY
+                    }).appendTo($line);
+                    //<div class='line'><div class='seat', data-x='0', data-y='0' ...></div></div>
+                    if (seat == 1) {
+                        // 좌석이 비어 있으면 enable 클래스와 click 리스너를 추가합니다.
+                        $output.addClass('enable').on('click', onClickSeat);
+
+                    } else if (seat == 2) {
+                        // 좌석이 사용 불가능하면 disable 클래스를 추가합니다.
+                        $output.addClass('disable');
+                    }
+                });
+                // 문서 객체를 추가합니다.
+                $line.appendTo('div.layer');                    
+                });
+            var b = $('<button class="btn--pay abc" xValue="", yValue="">결제하기</button>');
+            b.on('click', onClickPay);
+            b.appendTo('div.button');
+            //b.appendTo('.selectCount');
+       });    
+
+
+
+        //1. 좌석 선택하기
+        var onClickSeat = function () {
+            
+            var x = $(this).attr('data-x');
+            var y = $(this).attr('data-y');
+            
+            if( $(this).hasClass('.disable') ){
+                
+            //1.1 좌석일경우(복도X)
+            }else{               
+                
+                var count = $(":input:radio[name=selection]:checked").val();
+                
+                //1.1.1  인원수 선택(X)
+                if(count == undefined ){
+                    alert('인원수를 먼저 선택해 주세요!');
+                    return;
+                }
+                
+                //1.1.2 인원이 남음(X) array를 비우고 새로 넣는다.
+                if(selectedSeat.length>=count){
+                    
+                    alert('선택하신 인원수를 초과하였습니다.\n좌석을 다시선택해 주세요.');                    
+                    
+                    var tempLength = selectedSeat.length;
+                    
+                    for(i = 0; i < tempLength; i++){      //왜 <는 안되 고 <=는 되는거였지?                     
+                        var before = selectedSeat.pop();    
+                        var $target = $('div[data-x = ' + before[1] + '][data-y = ' + before[0] + ']');
+                        
+                        $target.off('click');
+                        $target.removeClass('tempMy');
+                        $target.addClass('enable').on('click', onClickSeat);   
+                   }
+                }
+
+                
+                //1.1.3 인원수 선택(OK) & 인원이 남음(OK)
+                
+                    
+                $(this).off('click');
+                //다시 클릭했을 때는 선택취소를 할 수 있도록 이벤트를 걸어둔다.
+                $(this).on('click', onTempCancel);
+
+                var tempArr = [y, x];
+                selectedSeat.push(tempArr);
+
+                var $target = $('div[data-x = ' + x + '][data-y = ' + y + ']');
+
+                $target.removeClass('enable');
+                $target.addClass('tempMy');      
+                
+                console.log('좌석선택됨');
+
+                //좌석번호 출력하기
+                parent.postMessage(selectedSeat,"*");
+ 
+            }
+        };
+
+
+
+        //2. 좌석 선택취소하기
+        var onTempCancel = function () {
+            
+            var x = $(this).attr('data-x');
+            var y = $(this).attr('data-y');
+            
+            $(this).off('click');
+            var index = findIndex(selectedSeat, x, y);
+
+            selectedSeat.splice(index,1);
+
+            var $target = $('div[data-x = ' + x + '][data-y = ' + y + ']');
+
+            $target.removeClass('tempMy');
+            $target.addClass('enable').on('click', onClickSeat);  
+            //좌석번호 출력하기
+            console.log('좌석 취소 : '+selectedSeat);
+
+            parent.postMessage(selectedSeat,"*");            
+                    
+        };
+
+
+
+       //3. 좌석을 예매할때
+       var onClickPay = function () {
+           
+           var count = $(":input:radio[name=selection]:checked").val();
+
+           if(selectedSeat.length<1 || selectedSeat.length != count){
+                 alert('좌석을 먼저 선택해주세요');
+            }else{
+                 if (confirm('결제하시겠습니까?')) {
+                    
+                   
+                     var temp = selectedSeat.length-1;
+                     for(var i=temp; i>=0; i--){  
+                         //alert('selectedSeat.length : '+selectedSeat.length );
+                         //alert('i ; '+i);
+                         //alert('selectedSeat[i][0] : '+selectedSeat[i][0]);
+                        //1. node 서버로 좌석 값 전송하기                    
+                        var output = { x: selectedSeat[i][1], y: selectedSeat[i][0], roomId : roomId}; 
+                        if(socket == undefined ){
+                            alert('서버에 연결되어 있지 않습니다.');
+                        }       
+                       //0. duplication checking을 위하여 selectedSeat에서 제거한다.
+                        console.log('♣♣♣before : '+selectedSeat);                       
+                        var index = findIndex(selectedSeat, selectedSeat[i][1], selectedSeat[i][0]);  
+                        selectedSeat.splice(index,1);
+                        console.log('♣♣♣after : '+selectedSeat);
+                
+                        socket.emit('message', output);
+
+                        //2. 결제창으로 넘어가달라고 전송하기
+                       
+                    }
+                      parent.postMessage("pay","*");
+
+                } else {
+                    alert('취소되었습니다.');
+                }
+            }
+           
+        };
+
+        $('input[type=radio]').click(function(){
+            var theLength = selectedSeat.length;
+            for(i = 0; i < theLength; i++){
+               
+                var before = selectedSeat.pop();                    
+                var $target = $('div[data-x = ' + before[1] + '][data-y = ' + before[0] + ']');
+
+                $target.off('click');
+                $target.removeClass('tempMy');
+                $target.addClass('enable').on('click', onClickSeat);   
+            }
+
+            var count = $(":input:radio[name=selection]:checked").val();  
+            console.log('countChange다. 여기는 node');
+            parent.postMessage("countChanged","*");
+        })    
+        
+        
+        
+        
+        
+    });
+
+     function findIndex(array, xValue, yValue){
+        var index = "-1";
+        for (i = 0; i < array.length; i++){ 
+            if(array[i][1]==xValue){
+                if(array[i][0]==yValue){
+                 index = i;
+                }
+            }
+        }
+         return index;
+    }
+
+
+</script>
+</head>
+    <body>
+        
+        <div class="outLayer container col-xs-12" align="center">
+        
+            <div class="layer row col-xs-12 ">
+            <div class="col-md-9 col-xs-9 text-center" style="float: left; width: 60%;">
+            <!--<div class="col-xs-8 text-center" style="float: left; width: 50%;">-->
+                
+                <form class="selectCount abc">인원수  
+                    1<input type="radio" name="selection" value="1" >
+                    2<input type="radio" name="selection" value="2" >
+                    3<input type="radio" name="selection" value="3" >
+                    4<input type="radio" name="selection" value="4" >                   
+                </form>
+            </div>
+            
+            <!--<div class="col-xs-4 text-center button" style="float: left; width: 50%;">-->
+            <div class="col-md-3 col-xs-3 text-center button" style="float: left; width: 40%;">
+            <!--button 들어오는 자리--> 
+            </div>
+            <!--<span style="text-align:center; paddin:30px; background:#D3D3D3; width:300px;">SCREEN</span>-->
+            </div>
+          
+            
+        </div>
+        
+    </body>
+    <style>
+        
+    button.btn--pay{
+        margin-bottom:10px;
+        margin-right:10px;
+        background-color: #90bf34;
+        border: solid 1px #90bf34;
+        color: white;
+        padding: 10px 35px;
+        -webkit-border-radius: 3px;
+        -moz-border-radius: 3px;
+        border-radius: 3px;
+        -webkit-box-shadow: 0 0 10px rgba(0, 0, 0, 0.16), inset 0 2px rgba(255, 255, 255, 0.2);
+        -moz-box-shadow: 0 0 10px rgba(0, 0, 0, 0.16), inset 0 2px rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.16), inset 0 2px rgba(255, 255, 255, 0.2);
+        font: 18px 'Jeju Gothic';
+        text-transform: uppercase;
+        -webkit-transition: 0.3s;
+        -o-transition: 0.3s;
+        transition: 0.3s;
+        
+    }
+    .abc{
+        font-family: 'jeju gothic', sans-serif;  
+    }
+       
+    form.selectCount{
+        font-size:25px;
+        margin-left:0px;
+        margin-top:10px;
+        vertical-align:middle;
+        text-align:right;
+    }
+    /*text-align:right;*/
+    .out-form{
+        margin-bottom:20px;
+    }
+        
+    html{
+        width:600px;
+        margin:0 auto;
+    }
+
+
+    </style>
+</html>

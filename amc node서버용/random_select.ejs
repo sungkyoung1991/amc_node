@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Node.js Programming for Modern Web</title>
+<style>
+        .line { overflow: hidden; }
+        .seat {
+            margin: 2px; float: left;
+            width: 20px; height: 20px;
+            border-radius: 3px;
+        }
+        .pay {
+            margin: 2px; float: left;
+            height: 30px;
+            border-radius: 3px;
+        }
+
+        .disable { background: gray; }
+        .selected { background: green; }
+    
+        .layer {
+         width: 100%;
+         height: 100%;
+         text-align: center;
+         }
+        .line {
+         display: inline-block;
+         }
+    html{
+        width:600px;
+        margin:0 auto;
+    }
+</style>
+    
+<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+    
+<script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    
+<!-- 소켓 생성 -->
+<script>
+    ////http://127.0.0.1:52273/random_select?screenNo=10172&count=2
+    //1. 소켓 이벤트를 수행하여 소켓연결
+    var socket = io.connect();
+
+    //2. 상영정보번호에 해당하는 방에 입장
+    //{no:screenNo, randomRow:randomRow, randomCol:randomCol, randomValue:randomValue});   
+    var roomId = <%= screenNo %>;
+    var list =[];
+    list = [<%= list %>];
+    var ok = "<%= ok %>";
+    var output = {command : 'join', roomId : roomId};
+    console.log('서버로 보낼 데이터 : '+JSON.stringify(output));
+    console.log('서버에서 받은 데이터 : '+list[0]+", "+list[1]);
+
+    if(socket == undefined){
+        console.log('좌석관련 서버에 연결되어 있지 않습니다. 관리자에게 문의하세요');
+        //return;
+    }
+
+    socket.emit('room', output);
+    
+     socket.on('specific', function (data) {
+        console.log('specific message(socket id) : '+data);
+        parent.postMessage("id,"+data,"*");        
+        
+    });
+
+
+
+    $(document).ready(function () {
+        if(ok =="failed" ){
+            alert('랜덤좌석 선택에 실패했습니다. 좌석 선택화면으로 이동합니다.');
+            parent.postMessage("failed","*")
+            
+        }
+        //0. ajax수행으로 좌석 현황 받아오기
+        $.getJSON('/seats', { dummy: new Date().getTime() }, function (data) {
+            // 좌석을 생성합니다.
+            $.each(data, function (indexY, line) {
+                // 문서 객체를 생성합니다.
+               var $line = $('<div style="margin-right:50px;margin-left:50px; float: center;"></div>').addClass('line');
+                //<div class='line'></div>
+
+                $.each(line, function (indexX, seat) {
+                    // 문서 객체를 생성하고 변수 $line에 추가합니다.
+                    var $output = $('<div ></div>', {
+                        'class': 'seat',
+                        'data-x': indexX,
+                        'data-y': indexY
+                    }).appendTo($line);
+
+                    if (seat == 1) {
+                        // 좌석이 비어 있으면 enable 클래스와 click 리스너를 추가합니다.
+                        $output.addClass('disable');
+                        if(indexY == list[0]){
+                            if( indexX == list[1]){
+                                console.log('당첨');
+                                $output.removeClass('disable');
+                                $output.addClass('selected');
+                                /*****************************************************************/ 
+                                var output = { x: list[1], y: list[0], roomId : roomId}; 
+                                if(socket == undefined ){
+                                    alert('서버에 연결되어 있지 않습니다.');
+                                }                  
+                                socket.emit('message', output);
+                               /******************************************************************/
+                            }
+                        }
+                        if(indexY == list[2]){
+                            if( indexX == list[3]){
+                                console.log('당첨');
+                                $output.removeClass('disable');
+                                $output.addClass('selected');
+                                /*****************************************************************/ 
+                                var output = { x: list[3], y: list[2], roomId : roomId}; 
+                                if(socket == undefined ){
+                                    alert('서버에 연결되어 있지 않습니다.');
+                                }                  
+                                socket.emit('message', output);
+                               /******************************************************************/
+                            }
+                        }
+                      
+                    } else if (seat == 2) {
+                        // 좌석이 사용 불가능하면 disable 클래스를 추가합니다.
+                        $output.addClass('disable');
+                    }
+                    
+                });
+                                    
+                // 문서 객체를 추가합니다.
+                $line.appendTo('div.layer');
+                parent.postMessage(list,"*");
+                                       
+                }); 
+
+            });
+        
+        
+        $('button').click(function () {
+           
+            
+           //1. node 서버로 좌석 값 전송하기       
+            var output = { y: list[0], x: list[1], roomId : roomId};
+              console.log("output : "+output); 
+             if(confirm("list: "+list)){
+                 if(socket == undefined ){
+                    alert('서버에 연결되어 있지 않습니다.');
+                } 
+                socket.emit('message', output);
+                if(list.length>3){
+                    output = { y: list[3], x: list[4], roomId : roomId};                  
+                   confirm("list[3] : "+list[3]+", list[4] : "+list[4]);            
+                }
+                socket.emit('message', output);
+             }
+        });
+        
+        
+        
+       });    
+                   
+
+</script>
+</head>
+    <body> 
+       
+      <div class="outLayer" align="center">         
+        <div class="layer">
+         
+        </div>
+      </div>
+    </body>
+</html>

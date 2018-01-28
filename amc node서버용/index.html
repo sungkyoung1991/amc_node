@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+<meta charset="UTF-8">
+<title>Socket.io Demo</title>
+<head>
+<div id="tweets"></div>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+<!-- Optional theme -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+
+<script src="/socket.io/socket.io.js"></script>
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.js"></script>
+<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+<script>
+    var socket = io.connect('/'), tweets = document.getElementById('tweets');
+    socket.on('tweet', function(data) {
+        //     tweets.innerHTML = data + '<br>' + tweets.innerHTML  ;
+        $('#tw').prepend(data + '<br>');
+    });
+
+    $(function() {
+
+        var sendsearch = window.location.pathname.split('/')[1];
+        sendsearch = decodeURI(sendsearch);
+        socket.emit('sendsearch', sendsearch);
+
+    });
+</script>
+</head>
+<body>
+
+
+		
+	
+		<div class="container">
+	<div id="tw"></div>
+	</div>
+</body>
+
+<style>
+    @import url(//fonts.googleapis.com/earlyaccess/jejugothic.css);
+
+    .twitterSearch{
+        font-family: 'Jeju Gothic', sans-serif;
+        padding-bottom: 10px;          
+    }
+    .name{
+        font-weight: bold;
+        font-size: 14px;
+    }
+    .screenName{
+        color:dimgrey;
+        font-weight: normal;
+         font-size: 12px;
+    }
+</style>
+</html>
